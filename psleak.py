@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """find the process leaking memory"""
-__author__ = 'Piotr Jankowski'
 
 from collections import OrderedDict
 from time import sleep
 from humanize import naturalsize
 import psutil
 
+__author__ = 'Piotr Jankowski'
+
 
 class ProcessDeltaException(Exception):
     pass
+
 
 class ProcessDelta(object):
     __slots__ = ['delta', 'percent', 'pd']
@@ -17,13 +19,14 @@ class ProcessDelta(object):
     def __init__(self, p1, p2):
         self.pd = p1
         self.delta = p1.pss - p2.pss
-        self.percent = (self.delta / p1.pss) * 100
+        self.percent = ((self.delta / p2.pss) * 100)
 
     def __str__(self):
         sign = ''
         if self.percent > 0:
             sign = '+'
         return naturalsize(self.delta, gnu=True) + ' ' + sign + str(self.percent) + ': ' + ' '.join(self.pd.cmd)
+
 
 class ProcessData(object):
     __slots__ = ['pid', 'name', 'cmd', 'pss']
