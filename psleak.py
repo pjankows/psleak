@@ -18,8 +18,8 @@ class ProcessDelta(object):
 
     def __init__(self, p1, p2):
         self.pd = p1
-        self.delta = p1.pss - p2.pss
-        self.percent = ((self.delta / p2.pss) * 100)
+        self.delta = p1.mem - p2.mem
+        self.percent = ((self.delta / p2.mem) * 100)
 
     def __str__(self):
         sign = ''
@@ -29,22 +29,22 @@ class ProcessDelta(object):
 
 
 class ProcessData(object):
-    __slots__ = ['pid', 'name', 'cmd', 'pss']
+    __slots__ = ['pid', 'name', 'cmd', 'mem']
 
-    def __init__(self, pid, name, cmd, pss):
+    def __init__(self, pid, name, cmd, mem):
         self.pid = pid
         self.name = name
         self.cmd = cmd
-        self.pss = int(pss)
+        self.mem = int(mem)
 
     def __str__(self):
-        return "{pid}: {pss} {name} {cmd}".format(
-                pid=self.pid, pss=naturalsize(self.pss, gnu=True), name=self.name, cmd=' '.join(self.cmd))
+        return "{pid}: {mem} {name} {cmd}".format(
+                pid=self.pid, mem=naturalsize(self.mem, gnu=True), name=self.name, cmd=' '.join(self.cmd))
 
     def __repr__(self):
-        return "{cls}(pid={pid}, name={name}, cmd={cmd}, pss={pss})".format(
+        return "{cls}(pid={pid}, name={name}, cmd={cmd}, mem={mem})".format(
                 cls=self.__class__.__name__, pid=self.pid, name=self.name,
-                cmd=self.cmd, pss=self.pss)
+                cmd=self.cmd, mem=self.mem)
 
     def __sub__(self, other):
         if self.pid == other.pid and self.name == other.name:
@@ -54,17 +54,21 @@ class ProcessData(object):
                 sp=self.pid, sn=self.name, op=other.pid, on=other.name))
 
     def __lt__(self, other):
-        """to allow sorting by pss"""
-        return self.pss < other.pss
+        """to allow sorting by mem"""
+        return self.mem < other.mem
 
 
 class PSDict(OrderedDict):
     def read(self):
         for p in psutil.process_iter():
             with p.oneshot():
+                try:
+                    mem = p.memory_full_info().pss
+                except psutil.AccessDenied:
+                    mem = p.memory_info().rss
                 pd = ProcessData(pid=p.pid, name=p.name(),
-                        cmd=p.cmdline(), pss=p.memory_full_info().pss)
-            if pd.pss > 0:
+                        cmd=p.cmdline(), mem=mem)
+            if pd.mem > 0:
                 self[pd.pid] = pd
 
     def sort(self):
@@ -100,6 +104,7 @@ class MemLeakFinder(object):
 def main():
     m = MemLeakFinder()
     m.infinite()
+
 
 def test():
     ps = PSDict()
