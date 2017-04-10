@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 import unittest
 
-from psleak import ProcessData, ProcessDelta, ProcessDeltaException
+from psleak import ProcessSnapshot, ProcessDelta, ProcessDeltaException
 import psleak
 
 
 class TestProcessDelta(unittest.TestCase):
     def setUp(self):
-        self.p1 = ProcessData(1, 'test1', '/opt/bin/test1 arg1 arg2', 1024)
-        self.p2 = ProcessData(1, 'test1', '/opt/bin/test1 arg1 arg2', 2048)
-        self.p3 = ProcessData(2, 'test1', '/opt/bin/test1 arg1 arg2', 2048)
-        self.p4 = ProcessData(1, 'test2', '/opt/bin/test2', 2048)
+        self.p1 = ProcessSnapshot(1, 'test1', '/opt/bin/test1 arg1 arg2', 1024)
+        self.p2 = ProcessSnapshot(1, 'test1', '/opt/bin/test1 arg1 arg2', 2048)
+        self.p3 = ProcessSnapshot(2, 'test1', '/opt/bin/test1 arg1 arg2', 2048)
+        self.p4 = ProcessSnapshot(1, 'test2', '/opt/bin/test2', 2048)
 
     def test_delta_sub_negative(self):
         d = self.p1 - self.p2

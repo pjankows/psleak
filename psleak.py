@@ -3,6 +3,9 @@
 
 from collections import OrderedDict
 from time import sleep
+import curses
+
+
 from humanize import naturalsize
 import psutil
 
@@ -21,14 +24,21 @@ class ProcessDelta(object):
         self.delta = p1.mem - p2.mem
         self.percent = ((self.delta / p2.mem) * 100)
 
+    def get_natural_delta(self):
+        return naturalsize(self.delta, gnu=True)
+
+    def get_command(self):
+        #return ' '.join(self.pd.cmd)
+        return self.pd.cmd[0]
+
     def __str__(self):
         sign = ''
         if self.percent > 0:
             sign = '+'
-        return naturalsize(self.delta, gnu=True) + ' ' + sign + str(self.percent) + ': ' + ' '.join(self.pd.cmd)
+        return self.get_natural_delta() + ' ' + sign + str(self.percent) + ': ' + self.get_command()
 
 
-class ProcessData(object):
+class ProcessSnapshot(object):
     __slots__ = ['pid', 'name', 'cmd', 'mem']
 
     def __init__(self, pid, name, cmd, mem):
@@ -59,17 +69,18 @@ class ProcessData(object):
 
 
 class PSDict(OrderedDict):
-    def read(self):
+    def get_data(self, pss=False):
         for p in psutil.process_iter():
             with p.oneshot():
-                try:
+                if pss:
                     mem = p.memory_full_info().pss
-                except psutil.AccessDenied:
+                else:
                     mem = p.memory_info().rss
-                pd = ProcessData(pid=p.pid, name=p.name(),
-                        cmd=p.cmdline(), mem=mem)
+                pd = ProcessSnapshot(pid=p.pid, name=p.name(),
+                                     cmd=p.cmdline(), mem=mem)
             if pd.mem > 0:
                 self[pd.pid] = pd
+        return self
 
     def sort(self):
         """return sorted by value"""
@@ -77,13 +88,13 @@ class PSDict(OrderedDict):
 
 
 class MemLeakFinder(object):
-    def __init__(self):
-        self.reference = PSDict()
-        self.reference.read()
+    def __init__(self, stdscr):
+        self.reference = PSDict().get_data()
+        self.stdscr = stdscr
 
     def refresh(self):
-        new_data = PSDict() 
-        new_data.read()
+        self.stdscr.clear()
+        new_data = PSDict().get_data()
         new_data = new_data.sort()
         for pid in new_data:
             if pid in self.reference:
@@ -93,25 +104,32 @@ class MemLeakFinder(object):
                     self.reference[pid] = new_data[pid]
             else:
                 self.reference[pid] = new_data[pid]
-            print(delta, new_data[pid])
+            try:
+                self.stdscr.addstr(str(delta))
+            except curses.error:
+                pass
+            #self.stdscr.addstr(str(new_data[pid]))
+            #print(delta, new_data[pid])
+        self.stdscr.refresh()
 
     def infinite(self):
         while(True):
-            sleep(2)
             self.refresh()
-        
+            sleep(1)
 
-def main():
-    m = MemLeakFinder()
+
+def main(stdscr):
+    stdscr.clear()
+    m = MemLeakFinder(stdscr)
     m.infinite()
 
 
 def test():
     ps = PSDict()
-    ps.read()
+    ps.get_data()
     ps = ps.sort()
     print(ps)
 
 
 if __name__ == '__main__':
-    main()
+    curses.wrapper(main)
